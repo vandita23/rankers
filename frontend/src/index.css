@@ -1,0 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  /* -- KisanAI design tokens -- */
+  --color-soil-50:  #FAF8F2;   /* app background: husked-rice off-white */
+  --color-soil-100: #F3EEE1;   /* card-on-card / muted surfaces */
+  --color-soil-200: #E8E0CC;   /* borders, dividers */
+
+  --color-leaf-900: #223B22;   /* deepest text-on-green */
+  --color-leaf-800: #2F5233;   /* primary brand green */
+  --color-leaf-700: #3C6B3E;   /* primary hover */
+  --color-leaf-600: #4F7942;   /* secondary green */
+  --color-leaf-500: #6B9B4C;   /* mid accent */
+  --color-leaf-400: #8BAA4B;   /* fresh-leaf accent */
+  --color-leaf-100: #E4EFD8;   /* success tint bg */
+
+  --color-marigold-500: #E0A537; /* sun / alerts / CTA warmth */
+  --color-marigold-100: #FBEDCE;
+
+  --color-clay-500: #B5652F;    /* earthen warning / soil accent, used sparingly */
+  --color-clay-100: #F5E4D6;
+
+  --color-ink-900: #24301F;    /* primary text */
+  --color-ink-600: #57614F;    /* secondary text */
+  --color-ink-400: #8B9483;    /* muted text / placeholders */
+
+  --font-display: "Baloo 2", "Noto Sans Devanagari", sans-serif;
+  --font-body: "Inter", "Noto Sans Devanagari", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  min-height: 100svh;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--color-soil-50);
+  color: var(--color-ink-900);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* subtle leaf-vein texture used as a quiet background accent */
+.leaf-texture {
+  background-image: radial-gradient(circle at 1px 1px, rgba(47,82,51,0.10) 1px, transparent 0);
+  background-size: 18px 18px;
+}
+
+/* visible keyboard focus ring, farmer-friendly high-contrast */
+:focus-visible {
+  outline: 3px solid var(--color-marigold-500);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
