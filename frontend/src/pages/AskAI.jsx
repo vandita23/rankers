@@ -4,7 +4,10 @@ import { useApp } from "../context/AppContext";
 import PageContainer from "../components/layout/PageContainer";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
-import { chatSuggestions, mockChatReply } from "../data/mock";
+import { chatSuggestions } from "../data/mock";
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 export default function AskAI() {
   const { t, lang } = useApp();
@@ -17,26 +20,61 @@ export default function AskAI() {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, thinking]);
 
-  function send(text) {
+  async function send(text) {
     const q = (text ?? input).trim();
-    if (!q) return;
+    if (!q || thinking) return;
+
     setMessages((m) => [...m, { role: "user", text: q }]);
     setInput("");
     setThinking(true);
-    // Mocked AI/RAG response — replace with a real call to the backend assistant endpoint.
-    setTimeout(() => {
-      setThinking(false);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: q,
+          language: lang,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "AI assistant request failed.");
+      }
+
       setMessages((m) => [
         ...m,
-        { role: "ai", text: mockChatReply[lang] ?? mockChatReply.en, sources: mockChatReply.sources },
+        {
+          role: "ai",
+          text: data.reply,
+          sources: data.sources ?? [],
+        },
       ]);
-    }, 1100);
+    } catch (error) {
+      setMessages((m) => [
+        ...m,
+        {
+          role: "ai",
+          text:
+            lang === "hi"
+              ? "माफ़ कीजिए, AI सेवा से संपर्क नहीं हो सका। कृपया सुनिश्चित करें कि backend चल रहा है और GEMINI_API_KEY सही है।"
+              : `Sorry, I could not reach the AI service. ${error.message}`,
+          sources: [],
+        },
+      ]);
+    } finally {
+      setThinking(false);
+    }
   }
 
   return (
     <PageContainer className="flex flex-col min-h-[calc(100svh-64px)]">
       <div className="mb-4">
-        <h1 className="font-display text-xl font-extrabold text-leaf-900">{t("ask_title")}</h1>
+        <h1 className="font-display text-xl font-extrabold text-leaf-900">
+          {t("ask_title")}
+        </h1>
         <p className="text-ink-600 text-sm mt-1">{t("ask_subtitle")}</p>
       </div>
 
@@ -60,7 +98,12 @@ export default function AskAI() {
       ) : (
         <div className="flex-1 space-y-3 mb-4">
           {messages.map((m, i) => (
-            <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+            <div
+              key={i}
+              className={`flex ${
+                m.role === "user" ? "justify-end" : "justify-start"
+              }`}
+            >
               <div
                 className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-snug ${
                   m.role === "user"
@@ -73,8 +116,10 @@ export default function AskAI() {
                     <Sparkles size={13} /> {t("common_ai")}
                   </p>
                 )}
-                <p>{m.text}</p>
-                {m.sources && (
+
+                <p className="whitespace-pre-wrap">{m.text}</p>
+
+                {m.sources?.length > 0 && (
                   <p className="mt-2 pt-2 border-t border-soil-200 text-[11px] text-ink-400">
                     {m.sources.join(" · ")}
                   </p>
@@ -82,6 +127,7 @@ export default function AskAI() {
               </div>
             </div>
           ))}
+
           {thinking && (
             <div className="flex justify-start">
               <div className="bg-white border border-soil-200 rounded-2xl rounded-bl-sm px-4 py-3 flex gap-1.5">
@@ -91,11 +137,14 @@ export default function AskAI() {
               </div>
             </div>
           )}
+
           <div ref={endRef} />
         </div>
       )}
 
-      <p className="text-[11px] text-ink-400 text-center mb-2">{t("ask_disclaimer")}</p>
+      <p className="text-[11px] text-ink-400 text-center mb-2">
+        {t("ask_disclaimer")}
+      </p>
 
       <form
         onSubmit={(e) => {
@@ -111,13 +160,19 @@ export default function AskAI() {
         >
           <Mic size={19} strokeWidth={2.25} />
         </button>
+
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder={t("ask_placeholder")}
           className="flex-1 bg-transparent outline-none text-sm text-ink-900 placeholder:text-ink-400"
         />
-        <Button type="submit" className="!min-h-[44px] !px-4" disabled={!input.trim()}>
+
+        <Button
+          type="submit"
+          className="!min-h-[44px] !px-4"
+          disabled={!input.trim() || thinking}
+        >
           <Send size={18} strokeWidth={2.25} />
         </Button>
       </form>
