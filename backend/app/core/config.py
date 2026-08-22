@@ -24,7 +24,7 @@ def _get_origins() -> list[str]:
 DATABASE_URL = _get_env("DATABASE_URL")
 CORS_ORIGINS = _get_origins()
 
-# These are optional until the corresponding AI/external services are added.
+# External service API keys
 GEMINI_API_KEY = _get_env("GEMINI_API_KEY")
 OPENWEATHER_API_KEY = _get_env("OPENWEATHER_API_KEY")
-DISEASE_MODEL_PATH = _get_env("DISEASE_MODEL_PATH")
+ROBOFLOW_API_KEY = _get_env("ROBOFLOW_API_KEY")
