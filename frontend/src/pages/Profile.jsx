@@ -4,13 +4,13 @@ import PageContainer from "../components/layout/PageContainer";
 import Card from "../components/ui/Card";
 import Badge from "../components/ui/Badge";
 import { LANGUAGES } from "../data/i18n";
-import { farmer } from "../data/mock";
 
 export default function Profile() {
-  const { t, lang, setLang } = useApp();
-  const name = lang === "hi" ? farmer.nameHi : farmer.name;
-  const location = lang === "hi" ? farmer.locationHi : farmer.location;
-  const crops = lang === "hi" ? farmer.cropsHi : farmer.crops;
+  const { t, lang, setLang, dashboard, dashboardLoading } = useApp();
+  const farmer = dashboard?.farmer;
+  const name = farmer?.name ?? "—";
+  const location = farmer?.location ?? "";
+  const crops = farmer?.crops ?? [];
 
   return (
     <PageContainer>
@@ -23,7 +23,9 @@ export default function Profile() {
           <User size={26} strokeWidth={2} />
         </span>
         <div>
-          <p className="font-display font-bold text-leaf-900 text-base">{name}</p>
+          <p className="font-display font-bold text-leaf-900 text-base">
+            {dashboardLoading ? t("common_loading") : name}
+          </p>
           <p className="text-ink-600 text-sm">{location}</p>
         </div>
       </Card>
