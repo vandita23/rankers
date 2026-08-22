@@ -5,9 +5,7 @@ import PageContainer from "../components/layout/PageContainer";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import { chatSuggestions } from "../data/mock";
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+import { sendChatMessage } from "../lib/api";
 
 export default function AskAI() {
   const { t, lang } = useApp();
@@ -29,20 +27,7 @@ export default function AskAI() {
     setThinking(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: q,
-          language: lang,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.detail || "AI assistant request failed.");
-      }
+      const data = await sendChatMessage(q, lang);
 
       setMessages((m) => [
         ...m,

@@ -1,11 +1,14 @@
-import { useState } from "react";
-import { Search, ChevronDown, FileCheck2, ListOrdered, BadgeCheck } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Search, ChevronDown, FileCheck2, ListOrdered, BadgeCheck, Loader2 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import PageContainer from "../components/layout/PageContainer";
 import Card from "../components/ui/Card";
-import { schemes } from "../data/mock";
+import { queryScheme } from "../lib/api";
 
-function SchemeCard({ scheme, lang, t }) {
+const DEFAULT_QUESTION = "What government schemes are available for farmers?";
+const DEBOUNCE_MS = 450;
+
+function SchemeCard({ scheme, t }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -16,11 +19,9 @@ function SchemeCard({ scheme, lang, t }) {
       >
         <div>
           <h3 className="font-display font-bold text-leaf-900 text-[15px] leading-snug">
-            {lang === "hi" ? scheme.name_hi : scheme.name_en}
+            {scheme.name}
           </h3>
-          <p className="text-ink-600 text-sm mt-1 leading-snug">
-            {lang === "hi" ? scheme.summary_hi : scheme.summary_en}
-          </p>
+          <p className="text-ink-600 text-sm mt-1 leading-snug">{scheme.summary}</p>
         </div>
         <ChevronDown
           size={20}
@@ -35,7 +36,7 @@ function SchemeCard({ scheme, lang, t }) {
               <BadgeCheck size={14} /> {t("schemes_eligibility")}
             </p>
             <ul className="space-y-1.5">
-              {(lang === "hi" ? scheme.eligibility_hi : scheme.eligibility_en).map((e, i) => (
+              {scheme.eligibility.map((e, i) => (
                 <li key={i} className="text-sm text-ink-900 flex gap-2">
                   <span className="text-leaf-600">•</span>
                   {e}
@@ -49,7 +50,7 @@ function SchemeCard({ scheme, lang, t }) {
               <FileCheck2 size={14} /> {t("schemes_documents")}
             </p>
             <ul className="space-y-1.5">
-              {(lang === "hi" ? scheme.documents_hi : scheme.documents_en).map((d, i) => (
+              {scheme.documents.map((d, i) => (
                 <li key={i} className="text-sm text-ink-900 flex gap-2">
                   <span className="text-leaf-600">•</span>
                   {d}
@@ -63,7 +64,7 @@ function SchemeCard({ scheme, lang, t }) {
               <ListOrdered size={14} /> {t("schemes_steps")}
             </p>
             <ol className="space-y-2">
-              {(lang === "hi" ? scheme.steps_hi : scheme.steps_en).map((s, i) => (
+              {scheme.steps.map((s, i) => (
                 <li key={i} className="flex gap-2.5 text-sm text-ink-900 leading-snug">
                   <span className="shrink-0 w-5 h-5 grid place-items-center rounded-full bg-leaf-100 text-leaf-800 text-[11px] font-bold">
                     {i + 1}
@@ -86,13 +87,39 @@ function SchemeCard({ scheme, lang, t }) {
 export default function Schemes() {
   const { t, lang } = useApp();
   const [query, setQuery] = useState("");
+  const [answer, setAnswer] = useState("");
+  const [schemes, setSchemes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const filtered = schemes.filter((s) => {
-    const name = lang === "hi" ? s.name_hi : s.name_en;
-    const summary = lang === "hi" ? s.summary_hi : s.summary_en;
-    const q = query.toLowerCase();
-    return !q || name.toLowerCase().includes(q) || summary.toLowerCase().includes(q);
-  });
+  useEffect(() => {
+    const question = query.trim() || DEFAULT_QUESTION;
+    const handle = setTimeout(() => {
+      let cancelled = false;
+      setLoading(true);
+      setError(null);
+
+      queryScheme(question, lang)
+        .then((data) => {
+          if (cancelled) return;
+          setAnswer(data.answer);
+          setSchemes(data.schemes);
+        })
+        .catch((err) => {
+          if (!cancelled) setError(err.message ?? "Failed to load schemes");
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+
+      return () => {
+        cancelled = true;
+      };
+    }, query ? DEBOUNCE_MS : 0);
+
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, lang]);
 
   return (
     <PageContainer>
@@ -109,13 +136,28 @@ export default function Schemes() {
           placeholder={t("schemes_searchPlaceholder")}
           className="flex-1 outline-none text-sm bg-transparent placeholder:text-ink-400"
         />
+        {loading && <Loader2 size={16} className="animate-spin text-ink-400 shrink-0" />}
       </div>
 
-      <div className="space-y-3">
-        {filtered.map((s) => (
-          <SchemeCard key={s.id} scheme={s} lang={lang} t={t} />
-        ))}
-      </div>
+      {answer && !loading && (
+        <Card className="mb-4 bg-leaf-100/50 border-leaf-400/30 text-sm text-ink-900">{answer}</Card>
+      )}
+
+      {error && (
+        <Card className="mb-4 border-clay-500/40 bg-marigold-100 text-sm text-ink-900">{error}</Card>
+      )}
+
+      {loading && schemes.length === 0 ? (
+        <Card className="flex items-center justify-center py-10 text-ink-400">
+          <Loader2 size={22} className="animate-spin" />
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {schemes.map((s) => (
+            <SchemeCard key={s.name} scheme={s} t={t} />
+          ))}
+        </div>
+      )}
     </PageContainer>
   );
 }

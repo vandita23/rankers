@@ -5,26 +5,39 @@ import PageContainer from "../components/layout/PageContainer";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
-import { diseaseClasses, supportedCrops } from "../data/mock";
+import { supportedCrops } from "../data/mock";
+import { predictDisease } from "../lib/api";
 
 export default function DiseaseDetection() {
   const { t, lang } = useApp();
   const [image, setImage] = useState(null);
-  const [status, setStatus] = useState("idle"); // idle | analyzing | done
+  const [status, setStatus] = useState("idle"); // idle | analyzing | done | error
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
   const inputRef = useRef(null);
-  const result = diseaseClasses[0];
 
-  function onFile(e) {
+  async function onFile(e) {
     const file = e.target.files?.[0];
     if (!file) return;
+
     setImage(URL.createObjectURL(file));
     setStatus("analyzing");
-    // Mocked inference — replace with a real call to the crop-disease model endpoint.
-    setTimeout(() => setStatus("done"), 1600);
+    setError(null);
+
+    try {
+      const data = await predictDisease(file, lang);
+      setResult(data);
+      setStatus("done");
+    } catch (err) {
+      setError(err.message ?? "Disease detection failed");
+      setStatus("error");
+    }
   }
 
   function reset() {
     setImage(null);
+    setResult(null);
+    setError(null);
     setStatus("idle");
     if (inputRef.current) inputRef.current.value = "";
   }
@@ -92,13 +105,22 @@ export default function DiseaseDetection() {
         </Card>
       )}
 
-      {status === "done" && (
+      {status === "error" && (
+        <>
+          <Card className="mb-4 border-clay-500/40 bg-marigold-100 text-sm text-ink-900">
+            {error}
+          </Card>
+          <Button variant="outline" icon={RefreshCw} onClick={reset} className="w-full">
+            {t("disease_tryAnother")}
+          </Button>
+        </>
+      )}
+
+      {status === "done" && result && (
         <>
           <Card className="mb-4">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="font-display font-bold text-leaf-900 text-base">
-                {lang === "hi" ? result.name_hi : result.name_en}
-              </h3>
+              <h3 className="font-display font-bold text-leaf-900 text-base">{result.disease}</h3>
               <Badge tone={result.confidence >= 80 ? "success" : "warning"}>
                 {result.confidence}% {t("disease_confidence")}
               </Badge>
@@ -109,7 +131,7 @@ export default function DiseaseDetection() {
                 style={{ width: `${result.confidence}%` }}
               />
             </div>
-            {result.confidence < 90 && (
+            {result.low_confidence && (
               <p className="flex items-start gap-1.5 text-xs text-clay-500 mt-2.5">
                 <TriangleAlert size={14} className="shrink-0 mt-0.5" />
                 {t("disease_lowConfidence")}
@@ -122,7 +144,7 @@ export default function DiseaseDetection() {
               <ListChecks size={16} /> {t("disease_recommended")}
             </p>
             <ol className="space-y-2.5">
-              {(lang === "hi" ? result.actions_hi : result.actions_en).map((a, i) => (
+              {result.recommended_actions.map((a, i) => (
                 <li key={i} className="flex gap-2.5 text-sm text-ink-900 leading-snug">
                   <span className="shrink-0 w-5 h-5 grid place-items-center rounded-full bg-leaf-100 text-leaf-800 text-[11px] font-bold">
                     {i + 1}
