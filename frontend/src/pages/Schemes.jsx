@@ -36,7 +36,7 @@ function SchemeCard({ scheme, t }) {
               <BadgeCheck size={14} /> {t("schemes_eligibility")}
             </p>
             <ul className="space-y-1.5">
-              {scheme.eligibility.map((e, i) => (
+              {(scheme.eligibility ?? []).map((e, i) => (
                 <li key={i} className="text-sm text-ink-900 flex gap-2">
                   <span className="text-leaf-600">•</span>
                   {e}
@@ -50,7 +50,7 @@ function SchemeCard({ scheme, t }) {
               <FileCheck2 size={14} /> {t("schemes_documents")}
             </p>
             <ul className="space-y-1.5">
-              {scheme.documents.map((d, i) => (
+              {(scheme.documents ?? []).map((d, i) => (
                 <li key={i} className="text-sm text-ink-900 flex gap-2">
                   <span className="text-leaf-600">•</span>
                   {d}
@@ -64,7 +64,7 @@ function SchemeCard({ scheme, t }) {
               <ListOrdered size={14} /> {t("schemes_steps")}
             </p>
             <ol className="space-y-2">
-              {scheme.steps.map((s, i) => (
+              {(scheme.steps ?? []).map((s, i) => (
                 <li key={i} className="flex gap-2.5 text-sm text-ink-900 leading-snug">
                   <span className="shrink-0 w-5 h-5 grid place-items-center rounded-full bg-leaf-100 text-leaf-800 text-[11px] font-bold">
                     {i + 1}
@@ -103,7 +103,7 @@ export default function Schemes() {
         .then((data) => {
           if (cancelled) return;
           setAnswer(data.answer);
-          setSchemes(data.schemes);
+          setSchemes(Array.isArray(data.schemes) ? data.schemes : []);
         })
         .catch((err) => {
           if (!cancelled) setError(err.message ?? "Failed to load schemes");
