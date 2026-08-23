@@ -1,111 +1,129 @@
-"""Government scheme assistant service.
+"""Government scheme assistant service using the project's RAG pipeline."""
 
-MOCK IMPLEMENTATION. `_SCHEMES` below is a small curated list standing in
-for the real RAG pipeline (embeddings + vector search over scheme docs).
-Replace `query()` internals once that's ready — keep the return shape the
-same so routes/schemes.py doesn't need to change.
+import json
+
+from google import genai
+
+from app.core.config import GEMINI_API_KEY
+from app.rag import engine as rag_engine
+from app.rag.config import RAG_ENABLED
+
+
+if not GEMINI_API_KEY:
+    raise RuntimeError("GEMINI_API_KEY is not configured.")
+
+_client = genai.Client(api_key=GEMINI_API_KEY)
+
+
+_SYSTEM_PROMPT = """
+You are KisanAI, an AI government scheme assistant for farmers in India.
+
+Your job is to answer questions about Indian government agricultural schemes
+using ONLY the provided knowledge-base context.
+
+Rules:
+- Answer in the language requested by the user.
+- Keep the answer concise, clear and practical.
+- Use simple language that a farmer can understand.
+- Do not invent scheme names, eligibility requirements, benefits,
+  documents, application procedures, amounts, deadlines or sources.
+- If the knowledge-base context does not contain enough information,
+  say that the available knowledge base does not contain enough information.
+- Do not mention embeddings, vector databases, RAG, prompts or internal
+  system details.
+
+You MUST return valid JSON in exactly this structure:
+
+{
+  "answer": "short answer to the farmer",
+  "schemes": [
+    {
+      "name": "scheme name",
+      "summary": "short summary",
+      "eligibility": ["item 1", "item 2"],
+      "documents": ["item 1", "item 2"],
+      "steps": ["step 1", "step 2"],
+      "source": "source/document name"
+    }
+  ]
+}
+
+If there are no relevant schemes in the context, return:
+
+{
+  "answer": "No relevant government scheme information was found.",
+  "schemes": []
+}
 """
 
-_SCHEMES = [
-    {
-        "id": "pm_kisan",
-        "name": {"en": "PM-KISAN", "hi": "पीएम-किसान"},
-        "summary": {
-            "en": "Direct income support of Rs 6,000/year for eligible farmer families.",
-            "hi": "पात्र किसान परिवारों को Rs 6,000/वर्ष की सीधी आय सहायता।",
-        },
-        "eligibility": {
-            "en": ["Small and marginal farmer family", "Own cultivable land", "Valid land records"],
-            "hi": ["छोटे और सीमांत किसान परिवार", "स्वयं की कृषि योग्य भूमि", "मान्य भूमि दस्तावेज़"],
-        },
-        "documents": {
-            "en": ["Aadhaar card", "Land ownership papers", "Bank account details"],
-            "hi": ["आधार कार्ड", "भूमि स्वामित्व कागजात", "बैंक खाता विवरण"],
-        },
-        "steps": {
-            "en": ["Visit pmkisan.gov.in or nearest CSC", "Fill the registration form", "Submit documents for verification"],
-            "hi": ["pmkisan.gov.in या नज़दीकी CSC पर जाएं", "पंजीकरण फॉर्म भरें", "सत्यापन के लिए दस्तावेज़ जमा करें"],
-        },
-        "source": "pmkisan.gov.in",
-        "keywords": ["income", "support", "kisan", "money", "cash"],
-    },
-    {
-        "id": "pmfby",
-        "name": {"en": "Pradhan Mantri Fasal Bima Yojana", "hi": "प्रधानमंत्री फसल बीमा योजना"},
-        "summary": {
-            "en": "Crop insurance covering losses from natural calamities, pests and disease.",
-            "hi": "प्राकृतिक आपदा, कीट और रोग से होने वाले नुकसान को कवर करने वाला फसल बीमा।",
-        },
-        "eligibility": {
-            "en": ["All farmers growing notified crops", "Loanee and non-loanee farmers"],
-            "hi": ["अधिसूचित फसल उगाने वाले सभी किसान", "ऋणी और गैर-ऋणी किसान"],
-        },
-        "documents": {
-            "en": ["Aadhaar card", "Land records", "Bank passbook", "Sowing declaration"],
-            "hi": ["आधार कार्ड", "भूमि रिकॉर्ड", "बैंक पासबुक", "बुवाई घोषणा पत्र"],
-        },
-        "steps": {
-            "en": ["Apply via bank, CSC or pmfby.gov.in", "Pay the nominal premium share", "Report crop loss within 72 hours if it occurs"],
-            "hi": ["बैंक, CSC या pmfby.gov.in के माध्यम से आवेदन करें", "मामूली प्रीमियम राशि जमा करें", "नुकसान होने पर 72 घंटे के भीतर सूचित करें"],
-        },
-        "source": "pmfby.gov.in",
-        "keywords": ["insurance", "crop loss", "damage", "flood", "drought"],
-    },
-    {
-        "id": "kcc",
-        "name": {"en": "Kisan Credit Card", "hi": "किसान क्रेडिट कार्ड"},
-        "summary": {
-            "en": "Low-interest credit for seeds, fertilizer and farm needs.",
-            "hi": "बीज, उर्वरक और खेती की जरूरतों के लिए कम ब्याज़ पर ऋण।",
-        },
-        "eligibility": {
-            "en": ["Farmers, tenant farmers and sharecroppers", "Self-Help Group members engaged in farming"],
-            "hi": ["किसान, बटाईदार और काश्तकार", "खेती से जुड़े स्वयं सहायता समूह सदस्य"],
-        },
-        "documents": {
-            "en": ["Aadhaar and ID proof", "Land documents", "Passport-size photo"],
-            "hi": ["आधार और पहचान प्रमाण", "भूमि दस्तावेज़", "पासपोर्ट साइज़ फोटो"],
-        },
-        "steps": {
-            "en": ["Visit nearest bank branch", "Fill KCC application form", "Bank verifies and issues card"],
-            "hi": ["नज़दीकी बैंक शाखा में जाएं", "KCC आवेदन फॉर्म भरें", "बैंक सत्यापन के बाद कार्ड जारी करता है"],
-        },
-        "source": "Dept. of Agriculture & Farmers Welfare",
-        "keywords": ["loan", "credit", "bank", "fertilizer", "seeds"],
-    },
-]
 
-_FALLBACK_ANSWER = {
-    "en": "Here are the government schemes that may be relevant to your question.",
-    "hi": "आपके प्रश्न से संबंधित सरकारी योजनाएं यहां दी गई हैं।",
-}
+def _generate(prompt: str) -> str:
+    response = _client.models.generate_content(
+        model="gemini-3.6-flash",
+        contents=prompt,
+    )
+
+    if not response.text:
+        raise RuntimeError("Gemini returned an empty response.")
+
+    return response.text.strip()
 
 
 def query(question: str, language: str) -> dict:
-    """Return {answer, schemes} for a farmer's scheme question.
+    """Return {answer, schemes} using the project's RAG knowledge base."""
 
-    TODO(LLM/RAG team): replace this keyword match with real retrieval, e.g.
-        chunks = vector_store.search(question, top_k=3)
-        answer = llm_client.complete(build_grounded_prompt(question, chunks))
-        return {"answer": answer.text, "schemes": chunks_to_schemes(chunks)}
-    """
-    q = question.lower()
-    matched = [s for s in _SCHEMES if any(k in q for k in s["keywords"])]
-    if not matched:
-        matched = _SCHEMES  # fall back to showing everything curated
+    if not question.strip():
+        raise ValueError("Question cannot be empty.")
 
-    schemes = [
-        {
-            "name": s["name"].get(language, s["name"]["en"]),
-            "summary": s["summary"].get(language, s["summary"]["en"]),
-            "eligibility": s["eligibility"].get(language, s["eligibility"]["en"]),
-            "documents": s["documents"].get(language, s["documents"]["en"]),
-            "steps": s["steps"].get(language, s["steps"]["en"]),
-            "source": s["source"],
-        }
-        for s in matched
-    ]
+    language_name = {
+        "en": "English",
+        "hi": "Hindi",
+    }.get(language, language)
+
+    chunks = []
+
+    if RAG_ENABLED:
+        try:
+            chunks = rag_engine.search(question)
+        except Exception:
+            chunks = []
+
+    context = rag_engine.format_context(chunks)
+
+    prompt = f"""
+{_SYSTEM_PROMPT}
+
+Respond in {language_name}.
+
+Knowledge-base context retrieved for this question:
+
+---
+{context}
+---
+
+Farmer's question:
+
+{question}
+
+Return ONLY valid JSON.
+"""
+
+    raw_response = _generate(prompt)
+
+    # Remove markdown code fences if Gemini happens to return them.
+    cleaned = raw_response.strip()
+
+    if cleaned.startswith("```"):
+        cleaned = cleaned.replace("```json", "", 1)
+        cleaned = cleaned.replace("```", "", 1)
+        cleaned = cleaned.strip()
+
+    try:
+        result = json.loads(cleaned)
+    except json.JSONDecodeError:
+        raise RuntimeError("Gemini returned an invalid scheme response.")
+
     return {
-        "answer": _FALLBACK_ANSWER.get(language, _FALLBACK_ANSWER["en"]),
-        "schemes": schemes,
+        "answer": result.get("answer", ""),
+        "schemes": result.get("schemes", []),
     }
