@@ -5,7 +5,7 @@ import PageContainer from "../components/layout/PageContainer";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
-import { supportedCrops } from "../data/mock";
+import { supportedCrops } from "../data/constants";
 import { predictDisease } from "../lib/api";
 
 export default function DiseaseDetection() {

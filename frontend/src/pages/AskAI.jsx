@@ -4,7 +4,7 @@ import { useApp } from "../context/AppContext";
 import PageContainer from "../components/layout/PageContainer";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
-import { chatSuggestions } from "../data/mock";
+import { chatSuggestions } from "../data/suggestions";
 import { sendChatMessage } from "../lib/api";
 
 export default function AskAI() {

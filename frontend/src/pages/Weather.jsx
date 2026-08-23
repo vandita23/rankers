@@ -7,11 +7,10 @@ import SectionHeading from "../components/ui/SectionHeading";
 import { getWeather } from "../lib/api";
 
 const conditionIcon = { rain: CloudRain, cloud: Cloud, sun: Sun };
-const FALLBACK_LOCATION = "Barabanki, Uttar Pradesh";
 
 export default function Weather() {
   const { t, lang, dashboard } = useApp();
-  const location = dashboard?.farmer?.location || FALLBACK_LOCATION;
+  const location = dashboard?.farmer?.location;
   const crop = dashboard?.farmer?.crops?.[0];
 
   const [weather, setWeather] = useState(null);
@@ -19,7 +18,10 @@ export default function Weather() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    if (!location) return;
+
     let cancelled = false;
+
     setLoading(true);
     setError(null);
 
@@ -28,7 +30,9 @@ export default function Weather() {
         if (!cancelled) setWeather(data);
       })
       .catch((err) => {
-        if (!cancelled) setError(err.message ?? "Failed to load weather");
+        if (!cancelled) {
+          setError(err.message ?? "Failed to load weather");
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
