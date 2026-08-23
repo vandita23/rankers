@@ -1,4 +1,4 @@
-# 🌾 KisanAI
+# KisanAI
 
 > AI-powered agricultural assistance for Indian farmers.
 
@@ -8,9 +8,9 @@ The application combines a modern React frontend with a FastAPI backend, Gemini-
 
 ---
 
-## 🚀 Features
+## Features
 
-### 🤖 AI Agricultural Assistant
+### AI Agricultural Assistant
 
 Ask questions about farming and receive practical, easy-to-understand answers.
 
@@ -31,7 +31,7 @@ The assistant supports:
 
 ---
 
-### 📚 RAG-Powered Knowledge Base
+### RAG-Powered Knowledge Base
 
 KisanAI uses **Retrieval-Augmented Generation (RAG)** to provide answers grounded in an agricultural knowledge base.
 
